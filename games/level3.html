@@ -1,0 +1,219 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Гидроцикл</title>
+<style>*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;height:100%;overflow:hidden;background:#092b45;font-family:monospace}body{display:flex;align-items:center;justify-content:center}#wrap{position:relative;width:min(100vw,1000px);height:min(100vh,620px);overflow:hidden;border:7px solid #10202b;box-shadow:0 12px 0 #07141b,0 20px 40px #0005}canvas{width:100%;height:100%;display:block;image-rendering:pixelated;touch-action:none}.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#06253a66}.hidden{display:none!important}.panel{width:min(88%,620px);padding:22px 26px;background:#fff0ae;border:7px solid #10202b;box-shadow:10px 10px 0 #10202b;text-align:center}h1{margin:0 0 8px;color:#b52b25;font-size:clamp(28px,6vw,48px);letter-spacing:2px;text-shadow:3px 3px #f5c85d}p{color:#2675a8;font-size:16px;font-weight:900;line-height:1.4}button{background:#71dc39;color:#10202b;border:5px solid #10202b;box-shadow:6px 6px 0 #10202b;padding:12px 22px;font:900 18px monospace;cursor:pointer}.controls{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);display:flex;gap:18px}.ctrl{width:105px;height:58px;background:#fff0ae;border:5px solid #10202b;box-shadow:5px 5px 0 #10202b;font:bold 28px monospace;color:#10202b;display:flex;align-items:center;justify-content:center;user-select:none}.ctrl:active{transform:translate(3px,3px);box-shadow:2px 2px 0 #10202b}#hud{position:absolute;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}.box{background:#fff0ae;border:5px solid #10202b;box-shadow:5px 5px #10202b;padding:8px 11px;font-weight:900;color:#10202b;font-size:15px}.small{font-size:14px}</style>
+<style>
+#hud #emmaCounter{
+  position:static !important;
+  left:auto !important;
+  right:auto !important;
+  top:auto !important;
+  transform:none !important;
+  z-index:auto !important;
+  flex:0 1 auto;
+  white-space:nowrap;
+}
+@media (max-width:700px){
+  #hud{gap:5px}
+  #hud .box{padding:6px 7px;font-size:11px;border-width:4px;box-shadow:4px 4px #10202b}
+}
+</style>
+
+<style>
+#hud{display:flex;align-items:flex-start;flex-wrap:nowrap}
+#hud #emmaCounter{position:static!important;transform:none!important;left:auto!important;right:auto!important;top:auto!important;white-space:nowrap;z-index:auto!important}
+@media(max-width:700px){
+  #hud{gap:4px}
+  #hud .box{font-size:10px;padding:5px 6px;border-width:3px;box-shadow:3px 3px #10202b}
+}
+.menuBtn{display:inline-flex;align-items:center;justify-content:center;margin-left:10px;text-decoration:none;background:#ffd33f;color:#10202b;border:5px solid #10202b;box-shadow:6px 6px 0 #10202b;padding:12px 22px;font:900 18px monospace}.menuBtn:active{transform:translate(3px,3px);box-shadow:3px 3px 0 #10202b}@media(max-width:560px){.menuBtn{display:flex;margin:12px auto 0;width:max-content}}
+</style>
+</head><body><div id="wrap"><canvas id="game" width="1000" height="620"></canvas><div id="hud" class="hidden"><div class="box">БУТЫЛКИ: <span id="bottles">0 / 8</span><div id="emmaCounter" class="box">ЭММА: 0 / 1</div></div><div class="box">СЧЁТ: <span id="score">0</span></div><div class="box">ЖИЗНИ: <span id="lives">3</span></div></div><div class="controls hidden" id="controls"><div class="ctrl" id="left">◀</div><div class="ctrl" id="right">▶</div></div><div id="start" class="overlay"><div class="panel"><h1>ГИДРОЦИКЛ</h1><p>Ты едешь на гидроцикле!<br>Тебе нужно выловить <b>8 бутылок виски</b> из воды и найти <b>Эмму</b>.<br>Управляй гидроциклом влево и вправо и избегай препятствий.</p><button id="startBtn">НАЧАТЬ ЗАЕЗД</button></div></div><div id="crash" class="overlay hidden"><div class="panel"><h1>БА-БАХ!</h1><p>Ты врезался в препятствие.</p></div></div><div id="win" class="overlay hidden"><div class="panel"><h1>ЭММА СПАСЕНА!<br>ВСЕ БУТЫЛКИ ВЫЛОВЛЕНЫ!</h1><p>Ты спас Эмму и выловил все 8 бутылок виски! </p><button id="againBtn">ЕЩЁ РАЗ</button><button type="button" class="menuBtn" onclick="window.location.href='../index.html'">← В МЕНЮ</button></div></div></div>
+<script>
+'use strict';
+const c=document.getElementById('game'),ctx=c.getContext('2d');const W=1000,H=620,INK='#10202b';
+let state='menu',frame=0,score=0,collected=0,lives=3,playerX=500,keys={left:false,right:false},bottles=[],obstacles=[],spawnBottle=0,spawnObs=0,waterOffset=0,crashTimer=null;
+const $=id=>document.getElementById(id);function hide(id){$(id).classList.add('hidden')}function show(id){$(id).classList.remove('hidden')}
+function R(x,y,w,h,col){ctx.fillStyle=col;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function bg(){R(0,0,W,H,'#2aa9dc');R(0,0,W,85,'#79d7ff');R(0,0,W,7,'#10202b');for(let i=0;i<14;i++){let x=(i*91+30)%W;let y=105+((i*47)%360);R(x,y,70,6,'#55c4e8');R(x+18,y+9,90,5,'#55c4e8')}for(let y=-40;y<H;y+=70){let off=(waterOffset+y)%140;for(let x=-100;x<W+100;x+=180)R(x+off,y,75,7,'#b9edff')}R(0,0,120,22,'#fff0ae');R(25,15,70,14,'#fff0ae');R(760,55,150,12,'#fff0ae');R(790,42,90,18,'#fff0ae')}
+function drawBottle(x,y){R(x-10,y-27,20,9,'#7a4b28');R(x-13,y-18,26,37,'#e0a33e');R(x-9,y-13,18,9,'#fff0ae');R(x-9,y-3,18,15,'#b66c2d');R(x-7,y-27,14,6,'#dce6e8');R(x-5,y-35,10,8,INK)}
+function drawObstacle(o){ctx.save();ctx.translate(o.x,o.y);if(o.type==='rock'){R(-38,0,76,28,INK);R(-28,-15,56,43,'#68747b');R(-17,-23,34,18,'#7f8a90');R(-25,3,12,8,'#a5afb2')}else if(o.type==='buoy'){R(-9,-55,18,55,INK);R(-28,-35,56,22,INK);R(-21,-29,42,11,'#ef6334');R(-17,-50,34,13,'#fff0ae');R(-8,-7,16,18,'#ef6334')}else{R(-45,-20,90,52,INK);R(-35,-10,70,32,'#d9a63b');R(-25,-2,50,10,'#a86e25')}ctx.restore()}
+function drawSki(){const x=playerX,y=520;ctx.save();ctx.translate(x,y);R(-62,33,124,12,INK);R(-48,42,96,8,'#dce6e8');R(-44,-18,88,45,INK);R(-34,-12,68,35,'#ef6334');R(-23,-4,45,18,'#ff9a45');R(-20,-35,40,20,INK);R(-13,-29,26,10,'#4b6975');R(-7,-63,14,30,INK);R(-38,-65,76,9,INK);R(-46,-70,15,8,INK);R(31,-70,15,8,INK);R(-24,-22,15,25,'#6c4b36');R(9,-22,15,25,'#6c4b36');R(-17,-55,34,20,'#f0b37c');R(-12,-51,7,6,INK);R(5,-51,7,6,INK);R(-9,-43,18,5,'#b52b25');ctx.restore()}
+function reset(){state='play';frame=0;score=0;collected=0;lives=3;playerX=500;bottles=[];obstacles=[];spawnBottle=0;spawnObs=0;waterOffset=0;hide('start');hide('crash');hide('win');show('hud');show('controls');updateHud();for(let i=0;i<2;i++)spawnB();for(let i=0;i<2;i++)spawnO()}
+function spawnB(){if(collected+bottles.length>=8)return; bottles.push({x:100+Math.random()*800,y:-30-Math.random()*220,r:18,s:4.8+Math.random()*1.2})}
+function spawnO(){obstacles.push({x:80+Math.random()*840,y:-80-Math.random()*220,type:['rock','buoy','crate'][Math.floor(Math.random()*3)],s:5.2+Math.random()*1.5,w:82,h:60})}
+function updateHud(){$('bottles').textContent=collected+' / 8';$('score').textContent=score;$('lives').textContent=lives}
+function hit(a,b){return Math.abs(a.x-b.x)<48&&Math.abs(a.y-b.y)<48}
+function crash(){if(state!=='play')return;lives--;updateHud();state='crash';hide('hud');hide('controls');show('crash');if(crashTimer)clearTimeout(crashTimer);if(lives<=0){crashTimer=setTimeout(reset,850)}else{crashTimer=setTimeout(()=>{state='play';hide('crash');show('hud');show('controls')},850)}}
+function pointerControl(id,prop){const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();keys[prop]=true});['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();keys[prop]=false}))}pointerControl('left','left');pointerControl('right','right');
+addEventListener('keydown',e=>{if(e.code==='ArrowLeft'||e.code==='KeyA')keys.left=true;if(e.code==='ArrowRight'||e.code==='KeyD')keys.right=true});addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='KeyA')keys.left=false;if(e.code==='ArrowRight'||e.code==='KeyD')keys.right=false});
+function update(){if(state!=='play')return;frame++;waterOffset=(waterOffset+5)%140;if(keys.left)playerX-=7;if(keys.right)playerX+=7;playerX=Math.max(70,Math.min(930,playerX));bottles.forEach(b=>b.y+=b.s);obstacles.forEach(o=>o.y+=o.s);for(let i=bottles.length-1;i>=0;i--){let b=bottles[i];if(hit({x:playerX,y:520},b)){bottles.splice(i,1);collected++;score+=150;updateHud();if(collected===8){state='win';try{localStorage.setItem('miniGameLevel3Done','1');try{parent.postMessage({type:'pixel-game-complete',level:3},'*')}catch(e){}}catch(e){}hide('hud');hide('controls');show('win');return}}else if(b.y>680)bottles.splice(i,1)}for(const o of obstacles){if(hit({x:playerX,y:520},o)){crash();return}}for(let i=obstacles.length-1;i>=0;i--)if(obstacles[i].y>680)obstacles.splice(i,1);if(bottles.length<3)spawnB();if(obstacles.length<3)spawnO()}
+function draw(){bg();bottles.forEach(b=>drawBottle(b.x,b.y));obstacles.forEach(drawObstacle);drawSki();if(state==='crash'){R(playerX-70,450,140,20,'#fff0ae');R(playerX-55,442,110,7,'#b52b25')}}
+function loop(){update();draw();requestAnimationFrame(loop)}
+$('startBtn').onclick=e=>{e.preventDefault();reset()};$('againBtn').onclick=e=>{e.preventDefault();reset()};loop();
+</script>
+
+
+
+
+
+
+
+
+
+<script>
+/* v6: Emma uses the exact same type of collision as the whiskey bottles. */
+(function(){
+  const c=document.getElementById('game');
+  const ctx=c.getContext('2d');
+  const counter=document.getElementById('hud');
+  let emma=null;
+  let emmaCaught=false;
+  let nextEmmaAt=0;
+  let emmaStarted=false;
+
+  // Dedicated counter, visually matching the existing HUD.
+  let box=document.getElementById('emmaCounter');
+  if(!box){
+    box=document.createElement('div');
+    box.id='emmaCounter';
+    box.className='box';
+    box.textContent='ЭММА: 0 / 1';
+    document.getElementById('hud').appendChild(box);
+  }
+
+  function resetEmma(){
+    emma=null;
+    emmaCaught=false;
+    emmaStarted=false;
+    nextEmmaAt=performance.now()+1200;
+    box.textContent='ЭММА: 0 / 1';
+  }
+
+  function spawnEmma(){
+    if(emma || emmaCaught) return;
+    emma={
+      x:100+Math.random()*800,
+      y:-50,
+      s:5.0,                 // same downward speed as the bottles
+      bob:Math.random()*6.28
+    };
+  }
+
+  function drawEmma(){
+    if(!emma) return;
+    const x=Math.round(emma.x);
+    const y=Math.round(emma.y+Math.sin(emma.bob)*2);
+
+    ctx.save();
+    ctx.translate(x,y);
+
+    // Emma — pixel art, ginger with darker spots.
+    ctx.fillStyle='#10202b';
+    ctx.fillRect(-27,-20,54,42);
+    ctx.fillRect(-21,-34,14,17);
+    ctx.fillRect(7,-34,14,17);
+
+    ctx.fillStyle='#d87832';
+    ctx.fillRect(-21,-16,42,34);
+    ctx.fillRect(-16,-30,9,13);
+    ctx.fillRect(8,-30,9,13);
+
+    ctx.fillStyle='#6b351f';
+    ctx.fillRect(-15,-9,8,7);
+    ctx.fillRect(8,-11,8,7);
+    ctx.fillRect(-5,5,10,7);
+    ctx.fillRect(-22,10,7,6);
+
+    ctx.fillStyle='#10202b';
+    ctx.fillRect(-12,-1,5,5);
+    ctx.fillRect(8,-1,5,5);
+    ctx.fillRect(-4,8,8,5);
+
+    ctx.fillStyle='#d87832';
+    ctx.fillRect(-24,18,10,18);
+    ctx.fillRect(14,18,10,18);
+    ctx.fillRect(20,17,17,8);
+    ctx.fillRect(31,9,10,10);
+
+    // Small water splash, like a floating object moving down the stream.
+    ctx.fillStyle='#b9edff';
+    ctx.fillRect(-31,34,62,4);
+    ctx.fillRect(-19,40,38,4);
+    ctx.restore();
+  }
+
+  function isPlaying(){
+    const s=document.getElementById('start');
+    const w=document.getElementById('win');
+    const cr=document.getElementById('crash');
+    return s && s.classList.contains('hidden') &&
+           (!w || w.classList.contains('hidden')) &&
+           (!cr || cr.classList.contains('hidden'));
+  }
+
+  // IMPORTANT: no pointer/click listener for Emma.
+  // Catching happens only through collision with the moving jet ski.
+  function checkEmmaCollision(){
+    if(!emma || emmaCaught) return;
+
+    // These are the EXACT player coordinates used by the original bottle collision:
+    // hit({x:playerX,y:520}, b)
+    const dx=Math.abs(playerX-emma.x);
+    const dy=Math.abs(520-emma.y);
+
+    if(dx<48 && dy<48){
+      emmaCaught=true;
+      emma=null;
+      box.textContent='ЭММА: 1 / 1';
+      score += 250;
+      updateHud();
+    }
+  }
+
+  // Reset together with the existing game reset.
+  document.getElementById('startBtn').addEventListener('click',resetEmma,true);
+  document.getElementById('againBtn').addEventListener('click',resetEmma,true);
+
+  function loopEmma(){
+    if(isPlaying()){
+      if(!emmaStarted){
+        emmaStarted=true;
+        nextEmmaAt=performance.now()+1200;
+      }
+
+      if(!emmaCaught && !emma && performance.now()>=nextEmmaAt){
+        spawnEmma();
+      }
+
+      if(emma){
+        // Same downward movement concept as bottles.
+        emma.y += emma.s;
+        emma.bob += .08;
+
+        checkEmmaCollision();
+
+        if(emma && emma.y>680){
+          emma=null;
+          nextEmmaAt=performance.now()+900;
+        }
+      }
+    } else {
+      const s=document.getElementById('start');
+      if(s && !s.classList.contains('hidden')){
+        emmaStarted=false;
+        emma=null;
+        emmaCaught=false;
+        box.textContent='ЭММА: 0 / 1';
+      }
+    }
+
+    // Draw AFTER the original game's draw(), so Emma is visible above the water.
+    if(emma && isPlaying()) drawEmma();
+    requestAnimationFrame(loopEmma);
+  }
+
+  resetEmma();
+  loopEmma();
+})();
+</script>
+
+</body></html>
