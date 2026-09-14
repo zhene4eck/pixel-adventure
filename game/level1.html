@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Накорми Эмму — Pixel Run</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#102d35;font-family:monospace}
+body{display:flex;align-items:center;justify-content:center}
+#wrap{
+  position:relative;width:min(100vw,1000px);height:min(100vh,620px);
+  overflow:hidden;background:#59c9ed;border:8px solid #10202b;
+  box-shadow:0 12px 0 #07141b,0 20px 40px rgba(0,0,0,.35);
+  image-rendering:pixelated
+}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated;touch-action:manipulation}
+#hud{position:absolute;top:16px;left:18px;right:18px;display:flex;gap:12px;justify-content:flex-start;pointer-events:none}
+.hudBox{
+  min-width:150px;height:64px;padding:7px 13px;background:#fff0ae;
+  border:5px solid #101e29;box-shadow:5px 5px 0 #101e29;
+  display:flex;align-items:center;gap:10px;color:#101e29;
+  font-size:25px;font-weight:900;letter-spacing:1px
+}
+.hudIcon{width:44px;height:44px;display:block;image-rendering:pixelated}
+#jump{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:17px;
+  min-width:190px;padding:10px 16px;margin:0;
+  background:#71dc39;color:#10202b;border:5px solid #10202b;
+  box-shadow:6px 6px 0 #10202b;font:900 18px monospace;
+  letter-spacing:1px;cursor:pointer
+}
+#jump:active{transform:translateX(calc(-50% + 3px)) translateY(3px);box-shadow:3px 3px 0 #10202b}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(9,34,43,.23)}
+.panel{
+  width:min(88%,570px);padding:20px 28px 25px;background:#fff0ae;
+  border:7px solid #10202b;box-shadow:11px 11px 0 #10202b;
+  text-align:center;position:relative
+}
+.panel:before,.panel:after{content:"";position:absolute;width:10px;height:10px;background:#e8a33b}
+.panel:before{left:15px;top:15px}.panel:after{right:15px;bottom:15px}
+.pixelCat{width:180px;height:125px;margin:0 auto 3px;image-rendering:pixelated}
+h1{
+  margin:0 0 8px;color:#c65d1d;font-size:clamp(27px,5.4vw,45px);
+  line-height:1;letter-spacing:2px;text-shadow:3px 3px 0 #f5c85d
+}
+p{margin:8px auto 14px;color:#b74f20;font-size:17px;font-weight:900;line-height:1.35;max-width:470px}
+.mainBtn{
+  display:inline-flex;align-items:center;justify-content:center;gap:12px;
+  min-width:300px;padding:13px 22px;background:#71dc39;color:#10202b;
+  border:6px solid #10202b;box-shadow:7px 7px 0 #10202b;
+  font:900 21px monospace;letter-spacing:1px;cursor:pointer
+}
+.mainBtn:active{transform:translate(4px,4px);box-shadow:3px 3px 0 #10202b}
+.btnIcon{width:30px;height:30px;display:block}
+.hidden{display:none!important}
+@media(max-width:600px){
+  #wrap{border-width:5px;height:min(100vh,600px)}
+  #hud{top:9px;left:9px;right:9px;gap:6px}
+  .hudBox{min-width:0;flex:1;height:49px;padding:4px 7px;border-width:4px;box-shadow:4px 4px 0 #10202b;font-size:17px;gap:5px}
+  .hudIcon{width:30px;height:30px}
+  #jump{bottom:10px;min-width:145px;padding:9px 12px;border-width:4px;box-shadow:4px 4px 0 #10202b;font-size:15px}
+  .panel{padding:15px 14px 19px;border-width:5px;box-shadow:7px 7px 0 #10202b}
+  .pixelCat{width:145px;height:100px}
+  p{font-size:14px}.mainBtn{min-width:230px;font-size:16px;border-width:5px;box-shadow:5px 5px 0 #10202b}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+<canvas id="game" width="1000" height="620"></canvas>
+
+<div id="hud" class="hidden">
+  <div class="hudBox"><canvas class="hudIcon" id="fishIcon" width="44" height="44"></canvas><span id="fishCount">0 / 8</span></div>
+  <div class="hudBox"><canvas class="hudIcon" id="starIcon" width="44" height="44"></canvas><span id="score">0</span></div>
+  <div class="hudBox"><canvas class="hudIcon" id="heartIcon" width="44" height="44"></canvas><span id="livesText">3</span></div>
+</div>
+
+<button id="jump" class="hidden"><canvas class="btnIcon" id="jumpIcon" width="30" height="30"></canvas>ПРЫЖОК</button>
+
+<div id="start" class="overlay">
+  <div class="panel">
+    <canvas id="sadCat" class="pixelCat" width="180" height="125"></canvas>
+    <h1>НАКОРМИ ЭММУ</h1>
+    <p>Эмма очень голодна!<br>Собери для неё все 8 рыбок<br>и перепрыгивай препятствия.</p>
+    <button id="startBtn" class="mainBtn"><canvas id="playIcon" class="btnIcon" width="30" height="30"></canvas>НАЧАТЬ ИГРУ</button>
+  </div>
+</div>
+
+<div id="win" class="overlay hidden">
+  <div class="panel">
+    <canvas id="happyCat" class="pixelCat" width="180" height="125"></canvas>
+    <h1>УРОВЕНЬ ПРОЙДЕН!</h1>
+    <p>Эмма собрала все 8 рыбок!<br>Теперь она сыта и довольна.</p>
+    <button id="againBtn" class="mainBtn"><canvas id="againIcon" class="btnIcon" width="30" height="30"></canvas>ИГРАТЬ ЕЩЁ</button><a href="../index.html" class="menuBtn">← В МЕНЮ</a>
+  </div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <div class="panel">
+    <canvas id="sadCat2" class="pixelCat" width="180" height="125"></canvas>
+    <h1>ПОПРОБУЙ ЕЩЁ!</h1>
+    <p>Эмма почти добралась до рыбок.<br>Давай попробуем ещё раз.</p>
+    <button id="retryBtn" class="mainBtn"><canvas id="retryIcon" class="btnIcon" width="30" height="30"></canvas>ЗАНОВО</button>
+  </div>
+</div>
+</div>
+
+<script>
+const c=document.getElementById('game'),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;
+const W=1000,H=620,ground=490;
+let state='menu',frame=0,fish=0,score=0,lives=3,speed=5.2;
+let cat={x:205,y:ground-70,w:70,h:70,vy:0,onGround:true};
+let obstacles=[],fishes=[],particles=[],spawn=90,fishSpawn=80,impact={active:false,t:0,x:0,y:0};
+
+const C={ink:'#10202b',sky:'#59c9ed',cloud:'#fff8ed',mount:'#3f9f69',mount2:'#65b83f',grass:'#78d23f',grass2:'#4fae3a',dirt:'#9a5728',dirt2:'#b66c2d',
+orange:'#e87520',orangeDark:'#a94416',ginger:'#f39a35',spot:'#7f3519',cream:'#fff0c6',blue:'#2b91e3',blue2:'#79d7ff',blueDark:'#1763a8',yellow:'#ffd33f'};
+
+function R(x,y,w,h,col){ctx.fillStyle=col;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function poly(points,col){ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);ctx.closePath();ctx.fill()}
+function drawCloud(x,y,s){
+  R(x+12*s,y+14*s,55*s,17*s,C.cloud);R(x+25*s,y+2*s,27*s,25*s,C.cloud);
+  R(x+5*s,y+19*s,28*s,13*s,C.cloud);R(x+49*s,y+16*s,31*s,16*s,C.cloud);
+  R(x+18*s,y+31*s,45*s,4*s,'#dceef2');
+}
+function drawSun(){
+  R(872,34,55,55,C.yellow);R(858,48,83,27,C.yellow);R(881,20,37,14,'#e8b52b');
+  R(881,88,37,13,'#e8b52b');R(846,56,12,12,'#e8b52b');R(934,56,12,12,'#e8b52b');
+}
+function drawBg(){
+  R(0,0,W,H,C.sky);drawSun();
+  drawCloud((frame*.12)%1200-150,72,1.1);drawCloud((frame*.08)%1300-390,125,.75);drawCloud((frame*.15)%1450-650,45,.55);
+  // layered pixel hills
+  poly([[0,310],[55,255],[105,310],[170,230],[235,310],[300,250],[360,310],[430,215],[500,310],[570,245],[640,310],[715,225],[790,310],[855,250],[930,310],[1000,245],[1000,490],[0,490]],C.mount);
+  poly([[0,350],[80,285],[145,345],[220,270],[295,350],[380,275],[465,350],[540,280],[625,350],[710,270],[800,350],[880,280],[955,350],[1000,310],[1000,490],[0,490]],C.mount2);
+  R(0,392,W,98,C.grass);
+  // distant shrubs
+  for(let x=-(frame*speed*.35%70);x<W;x+=70){
+    R(x+12,370,9,25,C.grass2);R(x+2,364,30,10,C.grass2);R(x+30,376,8,19,C.grass2);
+  }
+  // ground edge
+  R(0,480,W,10,'#2e7138');
+  for(let x=-(frame*speed%54);x<W;x+=54){R(x,486,33,5,'#174b2d');R(x+39,474,5,9,'#3e9139')}
+  // dirt
+  R(0,490,W,130,C.dirt);
+  for(let x=-(frame*speed*.7%72);x<W;x+=72){
+    R(x+8,510,25,16,C.dirt2);R(x+42,538,17,13,C.dirt2);R(x+20,578,31,15,C.dirt2);
+    R(x+2,548,10,8,'#7c4322');R(x+55,505,9,8,'#7c4322');
+  }
+}
+function drawFish(x,y){
+  // blue pixel fish
+  R(x,y+9,34,20,C.blue);R(x+7,y+4,21,29,C.blue);R(x+34,y+12,11,12,C.blue);
+  R(x+8,y+7,10,6,C.blue2);R(x+15,y+24,15,7,C.blue2);R(x+10,y+30,13,5,C.blueDark);
+  R(x+11,y+11,5,5,C.ink);R(x+3,y+16,7,8,C.blue2);
+}
+function drawObstacle(o){
+  if(o.crashed){
+    R(o.x,o.y+22,48,12,C.orangeDark);R(o.x+7,o.y+12,12,9,'#d68b45');R(o.x+28,o.y+15,12,8,'#d68b45');return;
+  }
+  if(o.type===0){
+    R(o.x,o.y,38,46,'#91502b');R(o.x+5,o.y-5,28,9,'#c57942');R(o.x+10,o.y+5,5,5,'#e0a05f');R(o.x+24,o.y+19,6,5,'#63361f');
+  }else if(o.type===1){
+    R(o.x+4,o.y+8,39,31,'#707985');R(o.x,o.y+16,47,18,'#707985');R(o.x+10,o.y+1,26,9,'#929ba4');R(o.x+13,o.y+12,8,7,'#4f5963');
+  }else{
+    R(o.x,o.y,48,40,'#ad632f');R(o.x+5,o.y+5,38,29,'#d48640');R(o.x+20,o.y+5,5,29,'#965127');R(o.x+7,o.y+18,35,5,'#965127');
+  }
+}
+function drawCat(x,y,phase,mode='run'){
+  const o=C.orange,d=C.ink,l=C.orangeDark,g=C.ginger,s=C.spot,cr=C.cream;
+  let leg=Math.sin(phase)*7,tail=Math.sin(phase*.7)*6;
+  if(mode==='jump'){leg=0;tail=-7}
+  if(mode==='hit'){leg=0;tail=9}
+
+  // tail
+  R(x-16,y+35+tail,15,9,o);R(x-25,y+25+tail,11,10,o);R(x-29,y+17+tail,8,9,d);
+  R(x-14,y+37+tail,6,5,s);
+
+  // body
+  R(x+13,y+25,43,31,o);R(x+9,y+34,51,19,o);R(x+18,y+48,32,12,o);
+  // light fur
+  R(x+16,y+37,13,10,cr);R(x+31,y+40,15,8,cr);R(x+8,y+26,8,8,g);
+  // leopard-like spots
+  R(x+35,y+29,8,7,s);R(x+46,y+36,6,6,s);R(x+25,y+49,7,6,s);
+  R(x+12,y+46,6,5,s);R(x+39,y+50,7,5,s);
+
+  // head + ears
+  R(x+3,y+8,45,32,o);R(x+9,y+1,13,14,o);R(x+33,y+1,13,14,o);
+  R(x+12,y+4,7,7,g);R(x+36,y+4,7,7,g);
+  // forehead / cheek spots
+  R(x+20,y+8,5,8,l);R(x+29,y+8,5,8,l);
+  R(x+7,y+26,7,5,s);R(x+38,y+26,7,5,s);R(x+11,y+12,5,5,s);R(x+35,y+12,5,5,s);
+
+  // face
+  if(mode==='sad'){
+    R(x+12,y+18,6,4,d);R(x+34,y+18,6,4,d);
+    R(x+15,y+30,22,7,g);R(x+23,y+28,7,5,d);
+  } else {
+    R(x+12,y+17,6,7,d);R(x+34,y+17,6,7,d);
+    R(x+15,y+29,22,8,g);R(x+23,y+27,7,5,d);
+  }
+
+  // legs
+  R(x+15,y+55,9,14+leg,o);R(x+41,y+55,9,14-leg,o);
+  R(x+12,y+68+leg,15,4,d);R(x+39,y+68-leg,15,4,d);
+  R(x+17,y+57+leg,5,5,s);R(x+42,y+57-leg,5,5,s);
+}
+function portrait(id,happy=false){
+  const g=document.getElementById(id).getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,180,125);
+  const R2=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h)};
+  const o=C.orange,d=C.ink,cr=C.cream,l=C.ginger,s=C.spot;
+  R2(63,67,57,38,o);R2(55,78,73,27,o);R2(71,94,39,15,l);
+  // body spots
+  R2(61,76,11,8,s);R2(105,72,10,8,s);R2(83,86,8,7,s);R2(110,91,7,6,s);
+  // head
+  R2(48,29,84,58,o);R2(60,16,21,23,o);R2(99,16,21,23,o);
+  R2(63,20,12,9,l);R2(104,20,12,9,l);
+  // leopard face spots
+  R2(53,36,8,7,s);R2(66,29,7,7,s);R2(108,31,8,7,s);R2(120,40,7,7,s);
+  R2(76,31,8,19,C.orangeDark);R2(94,31,8,19,C.orangeDark);
+  R2(61,49,11,8,d);R2(107,49,11,8,d);
+  R2(72,68,36,18,l);R2(84,65,11,7,d);
+  R2(51,62,12,7,l);R2(117,61,10,7,l);
+  if(happy){R2(60,47,12,4,d);R2(107,47,12,4,d);R2(78,81,27,5,d);R2(131,69,9,9,o);R2(137,61,8,8,d)}
+  else {R2(60,47,12,5,d);R2(107,47,12,5,d);R2(80,81,22,5,d)}
+}
+function iconFish(id){let g=document.getElementById(id).getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,44,44);const R2=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};R2(6,13,24,16,C.blue);R2(11,9,15,24,C.blue);R2(29,16,9,10,C.blue);R2(11,12,7,4,C.blue2);R2(17,25,11,5,C.blue2);R2(14,15,4,4,C.ink)}
+function iconHeart(id){let g=document.getElementById(id).getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,44,44);const R2=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};R2(8,10,11,8,'#e94b48');R2(25,10,11,8,'#e94b48');R2(5,17,34,15,'#e94b48');R2(11,30,22,7,'#e94b48');R2(16,12,8,5,'#ff7b63')}
+function iconStar(id){let g=document.getElementById(id).getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,44,44);const R2=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};R2(19,4,7,10,C.yellow);R2(13,11,19,8,C.yellow);R2(8,18,29,10,C.yellow);R2(13,27,19,7,C.yellow);R2(17,34,11,5,C.yellow);R2(20,11,5,6,'#fff18a')}
+function iconArrow(id,refresh=false){let g=document.getElementById(id).getContext('2d');g.imageSmoothingEnabled=false;g.clearRect(0,0,30,30);const R2=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h)};if(!refresh){R2(12,3,7,24,C.ink);R2(7,8,17,7,C.ink);R2(3,13,8,7,C.ink);R2(20,13,8,7,C.ink)}else{R2(6,8,17,6,C.ink);R2(4,11,6,9,C.ink);R2(20,5,6,10,C.ink);R2(8,19,17,6,C.ink);R2(20,14,6,9,C.ink)}}
+portrait('sadCat',false);portrait('sadCat2',false);portrait('happyCat',true);
+iconFish('fishIcon');iconHeart('heartIcon');iconStar('starIcon');iconArrow('jumpIcon');iconArrow('playIcon',true);iconArrow('againIcon',true);iconArrow('retryIcon',true);
+
+function reset(){
+  state='play';frame=0;fish=0;score=0;lives=3;speed=5.2;obstacles=[];fishes=[];particles=[];spawn=80;fishSpawn=30;impact={active:false,t:0,x:0,y:0};
+  cat={x:205,y:ground-70,w:70,h:70,vy:0,onGround:true};
+  document.getElementById('fishCount').textContent='0 / 8';document.getElementById('score').textContent='0';document.getElementById('livesText').textContent='3';
+  ['start','win','gameover'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('hud').classList.remove('hidden');document.getElementById('jump').classList.remove('hidden');
+}
+function jump(){if(state==='play'&&cat.onGround){cat.vy=-15.8;cat.onGround=false}}
+function hit(a,b){
+  const ax=a.x+9, ay=a.y+6, aw=a.w-16, ah=a.h-8;
+  const bx=b.x-3, by=b.y-3, bw=b.w+6, bh=b.h+6;
+  return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
+}
+function particle(x,y,col){particles.push({x,y,vx:(Math.random()-.5)*4.5,vy:-2-Math.random()*3.5,life:32,col})}
+function collect(f){
+  fish++;score+=100;document.getElementById('fishCount').textContent=fish+' / 8';document.getElementById('score').textContent=score;
+  for(let i=0;i<10;i++)particle(f.x+18,f.y+16,i%2?C.blue2:C.yellow);
+  if(fish>=8){state='celebrate';setTimeout(()=>{state='win';try{localStorage.setItem('miniGameLevel1Done','1');try{parent.postMessage({type:'pixel-game-complete',level:1},'*')}catch(e){}}catch(e){}document.getElementById('win').classList.remove('hidden');document.getElementById('hud').classList.add('hidden');document.getElementById('jump').classList.add('hidden')},900)}
+}
+function loseLife(o){
+  lives--;document.getElementById('livesText').textContent=lives;
+  impact={active:true,t:0,x:o.x,y:o.y};
+  for(let i=0;i<15;i++)particle(cat.x+48,cat.y+30,i%2?C.orange:C.cloud);
+  o.crashed=true;
+  cat.vy=-8;
+  if(lives<=0){
+    setTimeout(()=>{state='gameover';document.getElementById('gameover').classList.remove('hidden');document.getElementById('hud').classList.add('hidden');document.getElementById('jump').classList.add('hidden')},650);
+  }else{
+    setTimeout(()=>{if(state==='play'){cat.x=205;cat.y=ground-70;cat.vy=0;cat.onGround=true}},650);
+  }
+}
+function update(){
+  if(state==='play'||state==='celebrate'){
+    frame++;
+    if(state==='play'){
+      cat.vy+=.58;cat.y+=cat.vy;
+      if(cat.y>=ground-70){cat.y=ground-70;cat.vy=0;cat.onGround=true}
+      spawn--;fishSpawn--;
+      if(spawn<=0){let type=Math.floor(Math.random()*3),h=type===0?46:40;obstacles.push({x:W+25,y:ground-h,w:type===1?47:48,h,type,crashed:false});spawn=125+Math.random()*65}
+      if(fishSpawn<=0){
+        const fishY=[390,355,325][Math.floor(Math.random()*3)];
+        fishes.push({x:W+25,y:fishY,w:45,h:34});
+        fishSpawn=105+Math.random()*85;
+      }
+      obstacles.forEach(o=>o.x-=speed);fishes.forEach(f=>f.x-=speed);
+      for(const o of obstacles){if(!o.crashed&&hit(cat,o)){loseLife(o);break}}
+      fishes=fishes.filter(f=>{if(hit(cat,f)){collect(f);return false}return f.x>-70});
+      obstacles=obstacles.filter(o=>o.x>-80);
+      if(frame%650===0)speed=Math.min(7.1,speed+.25);
+    }
+    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.13;p.life--});particles=particles.filter(p=>p.life>0);
+  }
+  if(impact.active){impact.t++;if(impact.t>40)impact.active=false}
+}
+function draw(){
+  drawBg();
+  fishes.forEach(f=>drawFish(f.x,f.y));obstacles.forEach(drawObstacle);
+  particles.forEach(p=>{R(p.x,p.y,5,5,p.col);R(p.x+5,p.y-4,3,3,p.col)});
+  if(state==='play'||state==='celebrate'){
+    let mode=impact.active?'hit':(!cat.onGround?'jump':'run');
+    let dx=cat.x,dy=cat.y;
+    if(impact.active){dx+=Math.sin(impact.t*1.7)*Math.max(0,7-impact.t*.15);dy+=Math.min(12,impact.t*.65)}
+    drawCat(dx,dy,frame/4,mode);
+  }
+  // decorative top pixel line like the reference UI
+  R(0,0,W,7,'#10202b');R(0,H-7,W,7,'#10202b');
+  requestAnimationFrame(drawLoop);
+}
+function drawLoop(){update();draw()}
+document.getElementById('startBtn').onclick=reset;document.getElementById('againBtn').onclick=reset;document.getElementById('retryBtn').onclick=reset;
+document.getElementById('jump').onclick=jump;c.addEventListener('pointerdown',e=>{if(state==='play')jump()});
+window.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump()}});
+drawLoop();
+</script>
+</body>
+</html>
